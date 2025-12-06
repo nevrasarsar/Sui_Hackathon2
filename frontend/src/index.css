@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    background-color: #0F0F3E;
+    /* Slightly darker than 1D1E6C for depth */
+    background: radial-gradient(circle at center, #1D1E6C 0%, #0F0F3E 100%);
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+@layer utilities {
+    .text-glow {
+        text-shadow: 0 0 10px rgba(171, 154, 235, 0.7), 0 0 20px rgba(171, 154, 235, 0.5);
+    }
+
+    .box-glow {
+        box-shadow: 0 0 15px rgba(255, 127, 80, 0.4);
+    }
+
+    .neon-border {
+        border: 1px solid rgba(255, 127, 80, 0.5);
+        box-shadow: 0 0 10px rgba(255, 127, 80, 0.3);
+    }
+
+    .glitch-text {
+        position: relative;
+    }
+
+    .glitch-text:hover {
+        animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+    }
+
+    @keyframes glitch {
+        0% {
+            transform: translate(0)
+        }
+
+        20% {
+            transform: translate(-2px, 2px)
+        }
+
+        40% {
+            transform: translate(-2px, -2px)
+        }
+
+        60% {
+            transform: translate(2px, 2px)
+        }
+
+        80% {
+            transform: translate(2px, -2px)
+        }
+
+        100% {
+            transform: translate(0)
+        }
+    }
+}

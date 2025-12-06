@@ -1,0 +1,122 @@
+[
+    {
+        "id": 1,
+        "question_text": "Sui ağının mutabakat algoritması nedir?",
+        "options": [
+            "Proof of Work",
+            "Delegated Proof of Stake",
+            "Proof of History",
+            "Narwhal & Bullshark"
+        ],
+        "correct_option_id": 3,
+        "difficulty": 1
+    },
+    {
+        "id": 2,
+        "question_text": "Sui hangi programlama dilini kullanır?",
+        "options": [
+            "Solidity",
+            "Rust",
+            "Move",
+            "Python"
+        ],
+        "correct_option_id": 2,
+        "difficulty": 1
+    },
+    {
+        "id": 3,
+        "question_text": "Sui üzerinde 'Object' kavramı neyi ifade eder?",
+        "options": [
+            "Sadece coinleri",
+            "Akıllı kontratları",
+            "Depolanan tüm veri birimlerini",
+            "Blokları"
+        ],
+        "correct_option_id": 2,
+        "difficulty": 2
+    },
+    {
+        "id": 4,
+        "question_text": "Programmable Transaction Blocks (PTB) nedir?",
+        "options": [
+            "Blok boyutunu artırır",
+            "Tek bir işlemde birden fazla komutu zincirleme çalıştırır",
+            "Gizliliği sağlar",
+            "İşlem ücretini sıfırlar"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 3
+    },
+    {
+        "id": 5,
+        "question_text": "Sui'nin gas ücreti mekanizmasında hangisi bulunur?",
+        "options": [
+            "Gas Price",
+            "Storage Fund",
+            "Reference Gas Price",
+            "Hepsi"
+        ],
+        "correct_option_id": 3,
+        "difficulty": 2
+    },
+    {
+        "id": 6,
+        "question_text": "Shared Object nedir?",
+        "options": [
+            "Sadece sahibi tarafından değiştirilebilir",
+            "Herkes tarafından erişilebilir ve değiştirilebilir (mutabakat gerektirir)",
+            "Değiştirilemez nesne",
+            "Silinmiş nesne"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 2
+    },
+    {
+        "id": 7,
+        "question_text": "Sui Move'da 'init' fonksiyonu ne zaman çalışır?",
+        "options": [
+            "Her işlemde",
+            "Sadece modül yayınlandığında (publish)",
+            "Her gün bir kere",
+            "Kullanıcı çağırdığında"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 1
+    },
+    {
+        "id": 8,
+        "question_text": "Sui Explorer ne işe yarar?",
+        "options": [
+            "Kod yazmaya",
+            "Ağdaki işlemleri ve nesneleri görüntülemeye",
+            "Oyun oynamaya",
+            "Mining yapmaya"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 1
+    },
+    {
+        "id": 9,
+        "question_text": "Kiosk standardı ne için kullanılır?",
+        "options": [
+            "Token takası",
+            "Ticaret kuralları ile NFT transferi",
+            "Kimlik doğrulama",
+            "Veri saklama"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 3
+    },
+    {
+        "id": 10,
+        "question_text": "Sui hangi şirket tarafından geliştirilmiştir?",
+        "options": [
+            "Aptos Labs",
+            "Mysten Labs",
+            "Solana Foundation",
+            "Ethereum Foundation"
+        ],
+        "correct_option_id": 1,
+        "difficulty": 1
+    }
+]
