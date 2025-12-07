@@ -16,10 +16,10 @@ import { getRandomQuestions } from './data/questions';
 // --- GÖRSEL EŞLEŞTİRME ---
 const DRAGON_IMAGES: Record<number, string> = {
   1: "../public/dragons/stage_1.jpg",
-  2: "../public/dragons/stage_2.png",
+  2: "../public/dragons/stage_2.jpg",
   3: "../public/dragons/stage_3.jpg",
   4: "../public/dragons/stage_4.jpg",
-  5: "../public/dragons/stage_5.jpg"
+  5: "../public/dragons/stage_5.jpg",
 };
 
 export default function App() {
