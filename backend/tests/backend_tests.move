@@ -1,75 +1,156 @@
 #[test_only]
-module quiz_game::backend_tests {
-    use sui::test_scenario;
+module sui_quiz::backend_tests {
+    use sui::test_scenario::{Self, Scenario};
     use sui::clock::{Self, Clock};
-    use sui::coin::{Self};
+    use sui::coin::{Self, Coin};
     use sui::sui::SUI;
-    use quiz_game::game::{Self, GameBank, UserAccount, Leaderboard, DragonNFT};
+    use std::string;
+    use std::vector;
+    use std::option;
+    
+    // Import the game module
+    use sui_quiz::game::{Self, AdminCap, AdminConfig, GameBank, DragonNFT, PlayerGameProfile};
 
-    const ADMIN: address = @0xA;
-    const USER1: address = @0xB;
+    const ADMIN: address = @0xAD;
+    const USER: address = @0xB0B;
 
-    #[test]
-    fun test_game_flow() {
+    // Helper to start test
+    fun begin_test(): Scenario {
         let mut scenario = test_scenario::begin(ADMIN);
         
-        // 1. Init
-        {
-            game::init(test_scenario::ctx(&mut scenario));
-        };
-
+        // Run Init
+        game::init(test_scenario::ctx(&mut scenario));
+        
         test_scenario::next_tx(&mut scenario, ADMIN);
+        scenario
+    }
+
+    #[test]
+    fun test_init_and_profile_creation() {
+        let mut scenario = begin_test();
+
+        // Admin should have AdminCap
         {
-            // Deposit to bank
-            let mut bank = test_scenario::take_shared<GameBank>(&scenario);
-            let coin = coin::mint_for_testing<SUI>(1000_000_000_000, test_scenario::ctx(&mut scenario));
-            game::deposit_to_bank(&mut bank, coin, test_scenario::ctx(&mut scenario));
-            test_scenario::return_shared(bank);
+            let cap = test_scenario::take_from_sender<AdminCap>(&scenario);
+            test_scenario::return_to_sender(&scenario, cap);
         };
 
-        // 2. User Register
-        test_scenario::next_tx(&mut scenario, USER1);
+        // User Setup
+        test_scenario::next_tx(&mut scenario, USER);
+        
+        // Create Profile
         {
-            game::register_user(test_scenario::ctx(&mut scenario));
-        };
-
-        // 3. Play Game
-        test_scenario::next_tx(&mut scenario, USER1);
-        {
-            let mut account = test_scenario::take_from_sender<UserAccount>(&scenario);
-            let mut leaderboard = test_scenario::take_shared<Leaderboard>(&scenario);
             let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
-            
-            clock::set_for_testing(&mut clock, 10000); // Time moving forward
-
-            // Correct 8 answers
-            game::submit_daily_result(&mut account, &clock, 8, &mut leaderboard, test_scenario::ctx(&mut scenario));
-
+            game::initialize_player_profile(&clock, test_scenario::ctx(&mut scenario));
             clock::destroy_for_testing(clock);
-            test_scenario::return_shared(leaderboard);
-            test_scenario::return_to_sender(&scenario, account);
         };
 
-        // 4. Check Dragon Mint
-        test_scenario::next_tx(&mut scenario, USER1);
+        test_scenario::next_tx(&mut scenario, USER);
+        
+        // Check Profile
         {
-            let mut account = test_scenario::take_from_sender<UserAccount>(&scenario);
-            // Total score should be 8. No dragon yet? Points per level = 50. 
-            // 8 / 50 = 0. Level 1 + 0 = 1.
-            
-            game::mint_dragon(&mut account, test_scenario::ctx(&mut scenario));
-
-            test_scenario::return_to_sender(&scenario, account);
+            let profile = test_scenario::take_from_sender<PlayerGameProfile>(&scenario);
+            // Just verifying it exists and we can return it
+            test_scenario::return_to_sender(&scenario, profile);
         };
 
-        test_scenario::next_tx(&mut scenario, USER1);
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_hatching() {
+        let mut scenario = begin_test();
+        
+        // 1. User Creates Profile
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+            game::initialize_player_profile(&clock, test_scenario::ctx(&mut scenario));
+            clock::destroy_for_testing(clock);
+        };
+
+        // 2. Submit Quiz (3 Correct - Trigger Hatch)
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let mut profile = test_scenario::take_from_sender<PlayerGameProfile>(&scenario);
+            let config = test_scenario::take_shared<AdminConfig>(&scenario);
+            let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+            clock::set_for_testing(&mut clock, 20000); // 20s > 0 (Anti-cheat)
+
+            // Submit 3 correct answers
+            game::submit_quiz_results(&mut profile, &config, &clock, 3, test_scenario::ctx(&mut scenario));
+
+            test_scenario::return_to_sender(&scenario, profile);
+            test_scenario::return_shared(config);
+            clock::destroy_for_testing(clock);
+        };
+
+        // 3. Verify Dragon Mint
+        test_scenario::next_tx(&mut scenario, USER);
         {
             let dragon = test_scenario::take_from_sender<DragonNFT>(&scenario);
-            assert!(game::get_dragon_level(&dragon) == 1, 0); // Need getter or check fields if public
-            // Returning dragon to sender since we can't drop it easily without burning
+            // It should exist. Return it.
             test_scenario::return_to_sender(&scenario, dragon);
         };
 
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_evolution_to_legendary() {
+        let mut scenario = begin_test();
+        
+        // Setup Profile & First Dragon (Manual setup simulation)
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+            game::initialize_player_profile(&clock, test_scenario::ctx(&mut scenario));
+            clock::destroy_for_testing(clock);
+        };
+
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let mut profile = test_scenario::take_from_sender<PlayerGameProfile>(&scenario);
+            let config = test_scenario::take_shared<AdminConfig>(&scenario);
+            let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+            clock::set_for_testing(&mut clock, 20000);
+
+            // Hatch (3 pts)
+            game::submit_quiz_results(&mut profile, &config, &clock, 3, test_scenario::ctx(&mut scenario));
+            
+            test_scenario::return_to_sender(&scenario, profile);
+            test_scenario::return_shared(config);
+            clock::destroy_for_testing(clock);
+        };
+
+        // 4. Score 12 more points (Total 15)
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let mut profile = test_scenario::take_from_sender<PlayerGameProfile>(&scenario);
+            let config = test_scenario::take_shared<AdminConfig>(&scenario);
+            let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+            clock::set_for_testing(&mut clock, 40000); // +20s
+
+            game::submit_quiz_results(&mut profile, &config, &clock, 12, test_scenario::ctx(&mut scenario));
+
+            test_scenario::return_to_sender(&scenario, profile);
+            test_scenario::return_shared(config);
+            clock::destroy_for_testing(clock);
+        };
+
+        // 5. Evolve
+        test_scenario::next_tx(&mut scenario, USER);
+        {
+            let profile = test_scenario::take_from_sender<PlayerGameProfile>(&scenario);
+            let mut dragon = test_scenario::take_from_sender<DragonNFT>(&scenario);
+            let config = test_scenario::take_shared<AdminConfig>(&scenario);
+            
+            game::evolve_dragon(&profile, &mut dragon, &config, test_scenario::ctx(&mut scenario));
+
+            test_scenario::return_to_sender(&scenario, profile);
+            test_scenario::return_to_sender(&scenario, dragon);
+            test_scenario::return_shared(config);
+        };
         test_scenario::end(scenario);
     }
 }

@@ -2,25 +2,22 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromB64 } from '@mysten/sui/utils';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
 // CONFIGURATION
 const NETWORK = 'testnet';
-const MOVER_BYTECODE_PATH = path.resolve(__dirname, '../backend/build/SuiQuizProject/bytecode_modules');
-// Placeholder for user to fill
+const packagePath = process.cwd();
+const MOVER_BYTECODE_PATH = path.resolve(packagePath, 'backend/build/SuiQuizProject/bytecode_modules');
 const MNEMONIC = process.env.MNEMONIC || "insert your mnemonic here";
 
 const client = new SuiClient({ url: getFullnodeUrl(NETWORK) });
 
 const getKeypair = () => {
-    // Simple handling for mnemonic or private key would go here. 
-    // For this script, we assume a funded keypair is available.
-    // In a real scenario, use: Ed25519Keypair.deriveKeypair(MNEMONIC);
-    // For safety in this public script, will throw if not set.
     if (MNEMONIC.includes("insert")) {
         throw new Error("Please set MNEMONIC in .env file");
     }
@@ -30,40 +27,22 @@ const getKeypair = () => {
 const main = async () => {
     const keypair = getKeypair();
     const address = keypair.toSuiAddress();
-    console.log(`Running tests with address: ${address}`);
+    console.log(`Running with address: ${address}`);
 
-    // 1. PUBLISH CONTRACT
-    console.log("--- Step 1: Publishing Contract ---");
-    // Ensure build/ exists
+    // 1. PUBLISH
+    console.log("--- Step 1: Publishing ---");
     if (!fs.existsSync(MOVER_BYTECODE_PATH)) {
-        console.error(`Build output not found at ${MOVER_BYTECODE_PATH}. Please run 'sui move build' in backend/ first.`);
+        console.error(`Build output not found at ${MOVER_BYTECODE_PATH}`);
         return;
     }
-
-    const dependencies = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../backend/build/SuiQuizProject/dependencies.json'), 'utf8'));
-    // Note: Publishing programmatically requires handling dependencies correctly, which can be complex.
-    // For this helper script, we will assume the user provides a PACKAGE_ID or we simulate the interactions if already published.
-    // However, the prompt asked to "Publish contract".
-
-    // Simplified Publish approach:
-    const tx = new Transaction();
     const modules = fs.readdirSync(MOVER_BYTECODE_PATH)
         .filter(f => f.endsWith('.mv'))
         .map(f => fs.readFileSync(path.join(MOVER_BYTECODE_PATH, f), 'base64'));
 
-    // We need dependency IDs. This is complex to automate robustly without CLI.
-    // Let's print a message that for stability, using CLI is preferred, but here is the logic.
-    // For this script to work, we'll assume the user has published it and set PACKAGE_ID in env, 
-    // OR we attempt to publish if we had the dependency IDs.
-
-    // RETRY: The user specifically asked to WRITE a test case that DOES publish.
-    // I will construct a Publish command.
-
+    const tx = new Transaction();
     const [upgradeCap] = tx.publish({
         modules,
-        dependencies: [
-            "0x1", "0x2" // Standard dependencies (MoveStdLib, Sui) - usually these IDs are sufficient for simple contracts
-        ],
+        dependencies: ["0x1", "0x2"],
     });
     tx.transferObjects([upgradeCap], address);
 
@@ -73,100 +52,184 @@ const main = async () => {
         options: { showEffects: true, showObjectChanges: true }
     });
 
-    console.log("Publish Status:", publishRes.effects?.status.status);
     if (publishRes.effects?.status.status !== 'success') {
-        console.error("Publish failed");
+        console.error("Publish failed", publishRes.effects?.status);
         return;
     }
 
     const packageId = publishRes.objectChanges?.find(o => o.type === 'published')?.['packageId'];
-    console.log(`Package Published at: ${packageId}`);
-
-    // 2. MINT 10 NFTs
-    console.log("\n--- Step 2: Minting 10 NFTs ---");
-    // We mint 1 NFT to test, doing 10 might be slow/expensive for a quick test script, but requested.
-    // We will do a batch or loop.
-    let dragonId = "";
-
-    for (let i = 0; i < 1; i++) { // Doing 1 for speed and demonstration, 10 requested
-        const txb = new Transaction();
-        txb.moveCall({
-            target: `${packageId}::game::mint_to_sender`,
-            arguments: [
-                txb.pure.string(`Dragon #${i}`),
-                txb.pure.string("A fierce dragon"),
-                txb.pure.string("https://api.dicebear.com/7.x/pixel-art/svg?seed=Dragon")
-            ]
-        });
-        const res = await client.signAndExecuteTransaction({
-            signer: keypair,
-            transaction: txb,
-            options: { showEffects: true, showObjectChanges: true }
-        });
-
-        if (i === 0) {
-            // Capture one dragon ID for next steps
-            const created = res.objectChanges?.find(o => o.type === 'created' && o.objectType.includes('Dragon'));
-            if (created && 'objectId' in created) {
-                dragonId = created.objectId;
-                console.log(`Minted Dragon ID: ${dragonId}`);
-            }
-        }
+    if (!packageId) {
+        console.error("Could not find packageId");
+        return;
     }
-    console.log("Minting complete.");
+    console.log(`PACKAGE_ID: ${packageId}`);
 
-    if (!dragonId) {
-        console.error("No dragon minted, stopping.");
+    // Parse Objects
+    let adminCapId = "";
+    let adminConfigId = "";
+    let gameBankId = "";
+    let leaderboardId = "";
+
+    publishRes.objectChanges?.forEach(obj => {
+        if (obj.type === 'created') {
+            if (obj.objectType.includes('::AdminCap')) adminCapId = obj.objectId;
+            if (obj.objectType.includes('::AdminConfig')) adminConfigId = obj.objectId;
+            if (obj.objectType.includes('::GameBank')) gameBankId = obj.objectId;
+            if (obj.objectType.includes('::Leaderboard')) leaderboardId = obj.objectId;
+        }
+    });
+
+    console.log(`AdminCap: ${adminCapId}`);
+    console.log(`AdminConfig: ${adminConfigId}`);
+    console.log(`GameBank: ${gameBankId}`);
+    console.log(`Leaderboard: ${leaderboardId}`);
+
+    if (!adminCapId || !adminConfigId || !gameBankId) {
+        console.error("Missing critical objects.");
         return;
     }
 
-    // 3. LEVEL UP
-    console.log("\n--- Step 3: Level Up ---");
-    const lvlTx = new Transaction();
-    lvlTx.moveCall({
-        target: `${packageId}::game::level_up`,
-        arguments: [lvlTx.object(dragonId)]
+    // 2. CONFIGURE URLS
+    console.log("\n--- Step 2: Setting URLs & Funding Bank ---");
+    const configTx = new Transaction();
+    configTx.moveCall({
+        target: `${packageId}::game::update_dragon_urls`,
+        arguments: [
+            configTx.object(adminCapId),
+            configTx.object(adminConfigId),
+            configTx.pure.vector('string', [
+                "/dragons/stage_1.jpg", // Egg/Baby
+                "/dragons/stage_2.jpg", // Child
+                "/dragons/stage_3.jpg", // Teen
+                "/dragons/stage_4.jpg", // Adult
+                "/dragons/stage_5.jpg"  // Legendary
+            ])
+        ]
     });
-    await client.signAndExecuteTransaction({
+
+    // Split coin for funding (10 SUI = 10 * 10^9) -> 10_000_000_000. Let's do 20 SUI just to be safe.
+    // 20_000_000_000
+    const [fundCoin] = configTx.splitCoins(configTx.gas, [configTx.pure.u64(20_000_000_000)]);
+    configTx.moveCall({
+        target: `${packageId}::game::fund_treasury`,
+        arguments: [
+            configTx.object(gameBankId),
+            fundCoin
+        ]
+    });
+
+    await client.signAndExecuteTransaction({ signer: keypair, transaction: configTx });
+    console.log("Configured URLs and Funded Bank.");
+
+    // 3. INIT PROFILE
+    console.log("\n--- Step 3: Init Profile ---");
+    const profileTx = new Transaction();
+    profileTx.moveCall({
+        target: `${packageId}::game::initialize_player_profile`,
+        arguments: [profileTx.object('0x6')]
+    });
+    const profileRes = await client.signAndExecuteTransaction({
         signer: keypair,
-        transaction: lvlTx
+        transaction: profileTx,
+        options: { showObjectChanges: true }
     });
-    console.log("Level up transaction sent.");
 
-    // Verify Level? (Requires fetching object)
-    const dragonObj = await client.getObject({
-        id: dragonId,
-        options: { showContent: true }
+    // Find Profile ID
+    // Note: profileRes.objectChanges might contain many things. We look for the one created with type PlayerGameProfile.
+    let profileId = "";
+    profileRes.objectChanges?.forEach(obj => {
+        if (obj.type === 'created' && obj.objectType.includes('PlayerGameProfile')) {
+            profileId = obj.objectId;
+        }
     });
-    // @ts-ignore
-    const level = dragonObj.data?.content?.fields?.['level'];
-    console.log(`Dragon Level after update: ${level}`);
 
+    if (!profileId) {
+        console.error("Profile creation failed");
+        return;
+    }
+    console.log(`Profile ID: ${profileId}`);
 
-    // 4. BURN NFT
-    console.log("\n--- Step 4: Burn NFT ---");
-    const burnTx = new Transaction();
-    burnTx.moveCall({
-        target: `${packageId}::game::burn_dragon`, // Note: burn_dragon takes Dragon, not burn_for_sui (which needs Bank)
-        // If using burn_dragon_for_sui, we need the Bank object.
-        // Based on code, we have `burn_dragon(nft: Dragon)` which just deletes it.
-        arguments: [burnTx.object(dragonId)]
+    // 4. PLAY & HATCH (Score 3)
+    console.log("\n--- Step 4: Submit Quiz (3 Correct) -> Hatch ---");
+    const hatchTx = new Transaction();
+    hatchTx.moveCall({
+        target: `${packageId}::game::submit_quiz_results`,
+        arguments: [
+            hatchTx.object(profileId),
+            hatchTx.object(adminConfigId),
+            hatchTx.object('0x6'),
+            hatchTx.pure.u64(3) // Correct Count
+        ]
     });
-    const burnRes = await client.signAndExecuteTransaction({
+    const hatchRes = await client.signAndExecuteTransaction({
         signer: keypair,
-        transaction: burnTx,
-        options: { showEffects: true }
+        transaction: hatchTx,
+        options: { showObjectChanges: true }
     });
-    console.log("Burn Status:", burnRes.effects?.status.status);
 
-    // Verify Deletion
-    const deletedObj = await client.getObject({ id: dragonId });
-    if (deletedObj.error && deletedObj.error.code === 'notExists') {
-        console.log("Verification Success: Dragon object no longer exists.");
+    let dragonId = "";
+    hatchRes.objectChanges?.forEach(obj => {
+        if (obj.type === 'created' && obj.objectType.includes('DragonNFT')) {
+            dragonId = obj.objectId;
+        }
+    });
+
+    if (!dragonId) {
+        console.log("No dragon hatched (expected if already exists, but this is fresh profile). Error?");
+        // Keep going maybe?
     } else {
-        console.log("Verification Failed: Dragon object still exists or error checking.");
+        console.log(`Hatched Dragon ID: ${dragonId}`);
     }
 
+    if (!dragonId) return;
+
+    // 5. EVOLVE (Score +12 = 15)
+    console.log("\n--- Step 5: Score 12 more -> Evolve to Legendary ---");
+    console.log("Waiting 11s for Anti-Cheat cooldown...");
+    await new Promise(r => setTimeout(r, 11000));
+
+    const scoreTx = new Transaction();
+    scoreTx.moveCall({
+        target: `${packageId}::game::submit_quiz_results`,
+        arguments: [
+            scoreTx.object(profileId),
+            scoreTx.object(adminConfigId),
+            scoreTx.object('0x6'),
+            scoreTx.pure.u64(12)
+        ]
+    });
+    await client.signAndExecuteTransaction({ signer: keypair, transaction: scoreTx });
+    console.log("Points submitted.");
+
+    // EVOLVE
+    const evolveTx = new Transaction();
+    evolveTx.moveCall({
+        target: `${packageId}::game::evolve_dragon`,
+        arguments: [
+            evolveTx.object(profileId),
+            evolveTx.object(dragonId),
+            evolveTx.object(adminConfigId)
+        ]
+    });
+    await client.signAndExecuteTransaction({ signer: keypair, transaction: evolveTx });
+    console.log("Evolved to Legendary.");
+
+    // 6. SWAP
+    console.log("\n--- Step 6: Swap for SUI ---");
+    const swapTx = new Transaction();
+    swapTx.moveCall({
+        target: `${packageId}::game::swap_legendary_for_sui`,
+        arguments: [
+            swapTx.object(gameBankId),
+            swapTx.object(dragonId)
+        ]
+    });
+    const swapRes = await client.signAndExecuteTransaction({
+        signer: keypair,
+        transaction: swapTx,
+        options: { showEffects: true }
+    });
+    console.log("Swap Status:", swapRes.effects?.status.status);
 };
 
 main().catch(console.error);

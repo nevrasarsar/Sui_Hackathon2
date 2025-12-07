@@ -3,9 +3,9 @@ name = "quiz_game"
 version = "0.0.1"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
 
 [addresses]
-std =  "0x1"
-sui =  "0x2"
+std = "0x1"
+sui = "0x2"
 quiz_game = "0x0"

@@ -1,11 +1,25 @@
 import { WalletProvider } from '@suiet/wallet-kit';
-import { ReactNode } from 'react';
+import { SuiClientProvider, createNetworkConfig } from '@mysten/dapp-kit';
+import { getFullnodeUrl } from '@mysten/sui/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import '@suiet/wallet-kit/style.css';
+
+const { networkConfig } = createNetworkConfig({
+    testnet: { url: getFullnodeUrl('testnet') },
+    mainnet: { url: getFullnodeUrl('mainnet') },
+});
+
+const queryClient = new QueryClient();
 
 export function AppWalletProvider({ children }: { children: ReactNode }) {
     return (
-        <WalletProvider>
-            {children}
-        </WalletProvider>
+        <QueryClientProvider client={queryClient}>
+            <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+                <WalletProvider>
+                    {children}
+                </WalletProvider>
+            </SuiClientProvider>
+        </QueryClientProvider>
     );
 }

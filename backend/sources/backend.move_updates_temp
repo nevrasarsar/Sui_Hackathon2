@@ -1,0 +1,66 @@
+    // --- INIT ---
+
+    fun init(ctx: &mut TxContext) {
+        // 1. Create Admin Capability
+        let admin_cap = AdminCap { id: object::new(ctx) };
+        transfer::public_transfer(admin_cap, tx_context::sender(ctx));
+
+        // 2. Create Initial Admin Config
+        // Default placeholders - Admin should update these via transaction
+        let mut urls = vector::empty<String>();
+        vector::push_back(&mut urls, string::utf8(b"https://.../egg.png"));
+        vector::push_back(&mut urls, string::utf8(b"https://.../baby.png"));
+        vector::push_back(&mut urls, string::utf8(b"https://.../teen.png"));
+        vector::push_back(&mut urls, string::utf8(b"https://.../adult.png"));
+        vector::push_back(&mut urls, string::utf8(b"https://.../legendary.png"));
+
+        let config = AdminConfig {
+            id: object::new(ctx),
+            stage_urls: urls
+        };
+        // [SECURITY NOTE] Shared Object: Public usage for reading URLs.
+        transfer::share_object(config);
+
+        // 3. Create Leaderboard
+        let leaderboard = Leaderboard {
+            id: object::new(ctx),
+            scores: table::new(ctx)
+        };
+        // [SECURITY NOTE] Shared Object: Publicly accessible Board.
+        transfer::share_object(leaderboard);
+
+        // 4. Create Bank
+        let bank = GameBank {
+            id: object::new(ctx),
+            balance: balance::zero()
+        };
+        // [SECURITY NOTE] Shared Object: Game Treasury.
+        transfer::share_object(bank);
+    }
+
+    // --- ADMIN FUNCTIONS ---
+
+    public entry fun update_dragon_urls(
+        _: &AdminCap, 
+        config: &mut AdminConfig, 
+        new_urls: vector<String>
+    ) {
+        config.stage_urls = new_urls;
+    }
+
+    // --- GAME LOGIC ---
+
+    /// Create a simplified Profile if it doesn't exist
+    public entry fun create_profile(clock: &Clock, ctx: &mut TxContext) {
+        let sender = tx_context::sender(ctx);
+        let profile = PlayerGameProfile {
+            id: object::new(ctx),
+            user_address: sender,
+            total_correct_answers: 0,
+            current_dragon_id: option::none(),
+            daily_limit_used: 0,
+            last_reset: clock::timestamp_ms(clock)
+        };
+        // [SECURITY NOTE] Owned Object: Profile belongs to user.
+        transfer::transfer(profile, sender);
+    }
